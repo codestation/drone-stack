@@ -1,0 +1,24 @@
+workspace:
+  base: /go
+  path: src/megpoid.xyz/go/drone-stack
+
+pipeline:
+  build:
+    image: golang:1.10
+    commands:
+      - go get -u github.com/golang/dep/cmd/dep
+      - dep ensure
+      - go vet ./...
+      - go test -cover ./...
+      - sh .drone.sh
+
+  publish:
+    image: plugins/docker
+    repo: registry.megpoid.xyz/drone-stack
+    registry: registry.megpoid.xyz
+    tags: [ "latest"]
+    secrets: [ docker_username, docker_password ]
+    dockerfile: docker/Dockerfile
+    when:
+      branch: master
+      event: push
