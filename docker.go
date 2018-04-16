@@ -80,6 +80,8 @@ func (p Plugin) Exec() error {
 	if p.Login.Password != "" {
 		registryAuth = true
 		cmd := commandLogin(p.Login)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 		cmd.Env = envs
 		err := cmd.Run()
 		if err != nil {
