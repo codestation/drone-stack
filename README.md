@@ -55,18 +55,18 @@ drone secret create myuser/myapp --name docker_cacert --value @ca.pem
 
 ## Secret Reference
 
-`docker_username` - authenticates with this username
-`docker_password` - authenticates with this password
-`docker_cert` - client certificate
-`docker_key` - client key
-`docker_cacert` - CA certificate
+* `docker_username` - authenticates with this username
+* `docker_password` - authenticates with this password
+* `docker_cert` - client certificate
+* `docker_key` - client key
+* `docker_cacert` - CA certificate
 
 ## Parameter Reference
 
-`compose` - compose file to be used, defaults to docker-compose.yml
-`host` - remote docker swarm host:port
-`prune` - prune services that are no longer referenced
-`stack_name` - name of the stack to deploy
-`tls` - use TLS. Implied by `tlsverify`
-`tlsverify` - use TLS and verify the remote host
-`registry` - authenticates to this registry
+* `compose` - compose file to be used, defaults to docker-compose.yml
+* `host` - remote docker swarm host:port
+* `prune` - prune services that are no longer referenced
+* `stack_name` - name of the stack to deploy
+* `tls` - use TLS. Implied by `tlsverify`
+* `tlsverify` - use TLS and verify the remote host
+* `registry` - authenticates to this registry
