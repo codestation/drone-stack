@@ -43,6 +43,16 @@ docker run --rm \
   codestation/drone-stack
 ```
 
+## Load certificates as drone secrets
+
+Using the drone cli, go to the directory where your docker certificates are located then run the following commands:
+
+```bash
+drone secret create myuser/myapp --name docker_cert --value @cert.pem
+drone secret create myuser/myapp --name docker_key --value @key.pem
+drone secret create myuser/myapp --name docker_cacert --value @ca.pem
+```
+
 ## Secret Reference
 
 `docker_username` - authenticates with this username
