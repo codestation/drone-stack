@@ -25,9 +25,10 @@ type (
 	}
 
 	Deploy struct {
-		Name    string // Docker deploy stack name
-		Compose string // Docker compose file
-		Prune   bool   // Docker deploy prune
+		Name            string // Docker deploy stack name
+		Compose         string // Docker compose file
+		OverrideCompose string // Overriding docker compose file
+		Prune           bool   // Docker deploy prune
 	}
 
 	Certs struct {
@@ -196,6 +197,7 @@ func commandDeploy(deploy Deploy, auth bool) *exec.Cmd {
 		"stack",
 		"deploy",
 		"-c", deploy.Compose,
+		"-c", deploy.OverrideCompose,
 		deploy.Name,
 	}
 

@@ -64,6 +64,7 @@ drone secret create myuser/myapp --name docker_cacert --value @ca.pem
 ## Parameter Reference
 
 * `compose` - compose file to be used, defaults to docker-compose.yml
+* `override_compose` - composefile to override with (e.g. `-c docker-compose.override.yml`)
 * `host` - remote docker swarm host:port
 * `prune` - prune services that are no longer referenced
 * `stack_name` - name of the stack to deploy

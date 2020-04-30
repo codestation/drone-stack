@@ -47,6 +47,12 @@ func main() {
 			EnvVar: "PLUGIN_COMPOSE",
 		},
 		cli.StringFlag{
+			Name:   "override_compose",
+			Usage:  "stack deploy compose",
+			Value:  "docker-compose.override.yml",
+			EnvVar: "PLUGIN_OVERRIDE_COMPOSE",
+		},
+		cli.StringFlag{
 			Name:   "stack.name",
 			Usage:  "stack deploy name",
 			EnvVar: "PLUGIN_STACK_NAME",
@@ -108,9 +114,10 @@ func run(c *cli.Context) error {
 			Email:    c.String("docker.email"),
 		},
 		Deploy: docker.Deploy{
-			Name:    c.String("stack.name"),
-			Compose: c.String("compose"),
-			Prune:   c.Bool("prune"),
+			Name:            c.String("stack.name"),
+			Compose:         c.String("compose"),
+			OverrideCompose: c.String("override_compose"),
+			Prune:           c.Bool("prune"),
 		},
 		Certs: docker.Certs{
 			TLSKey:    c.String("docker.key"),
