@@ -12,7 +12,7 @@ RUN go get -u github.com/golang/dep/cmd/dep
 RUN dep ensure
 RUN CGO_ENABLED=0 go install -ldflags "-w -s -X main.build=${BUILD_NUMBER} -X main.commit=$(expr substr BUILD_COMMIT_SHORT 1 8)" -a -tags netgo ./...
 
-FROM docker:18.03.0-ce-dind
+FROM docker:19.03.8-dind
 LABEL maintainer="codestation <codestation404@gmail.com>"
 
 COPY --from=builder /go/bin/drone-stack /bin/drone-stack
