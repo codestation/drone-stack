@@ -1,18 +1,26 @@
-FROM golang:1.10 AS builder
+FROM golang:1.18 AS builder
 
-ARG BUILD_NUMBER=0
-ARG COMMIT_SHA
-ARG SOURCE_COMMIT
-ENV BUILD_COMMIT=${COMMIT_SHA:-${SOURCE_COMMIT:-unknown}}
+ARG CI_COMMIT_TAG
+ARG CI_COMMIT_BRANCH
+ARG CI_COMMIT_SHA
+ARG CI_PIPELINE_CREATED_AT
+ARG GOPROXY
+ENV GOPROXY=${GOPROXY}
 
-COPY . $GOPATH/src/megpoid.xyz/go/drone-stack/
-WORKDIR $GOPATH/src/megpoid.xyz/go/drone-stack/
+WORKDIR /src
+COPY go.mod go.sum /src/
+RUN go mod download
+COPY . /src/
 
-RUN go get -u github.com/golang/dep/cmd/dep
-RUN dep ensure
-RUN CGO_ENABLED=0 go install -ldflags "-w -s -X main.build=${BUILD_NUMBER} -X main.commit=$(expr substr BUILD_COMMIT_SHORT 1 8)" -a -tags netgo ./...
+RUN set -ex; \
+    CGO_ENABLED=0 go build -o release/drone-stack \
+    -ldflags "-w -s \
+    -X main.Version=${CI_COMMIT_TAG:-$CI_COMMIT_BRANCH} \
+    -X main.Commit=$(echo "$CI_COMMIT_SHA" | cut -c1-8) \
+    -X main.BuildTime=${CI_PIPELINE_CREATED_AT}" \
+    ./cmd/drone-stack
 
-FROM docker:18.03.0-ce-dind
+FROM docker:20.10-dind
 LABEL maintainer="codestation <codestation404@gmail.com>"
 
 COPY --from=builder /go/bin/drone-stack /bin/drone-stack

@@ -1,15 +1,53 @@
-workspace:
-  base: /go
-  path: src/megpoid.xyz/go/drone-stack
+---
+kind: pipeline
+name: default
+type: docker
 
-pipeline:
-  publish:
-    image: plugins/docker
-    repo: registry.megpoid.xyz/drone-stack
-    registry: registry.megpoid.xyz
-    tags: [ "latest"]
-    secrets: [ docker_username, docker_password ]
-    dockerfile: docker/Dockerfile
-    when:
-      branch: master
-      event: push
+platform:
+  os: linux
+  arch: arm64
+
+steps:
+  - name: lint
+    image: golangci/golangci-lint:v1.45.2
+    commands:
+      - golangci-lint run --no-config -v --timeout 10m ./...
+
+  - name: test
+    image: golang:1.18
+    commands:
+      - go test -coverprofile cover.out -v ./...
+      - go tool cover -func cover.out
+    environment:
+      GOPROXY:
+        from_secret: goproxy_url
+
+  - name: build
+    image: registry.megpoid.xyz/drone-stack
+    settings:
+      cache:
+        - registry.megpoid.xyz/drone-stack:${DRONE_BRANCH}-cache
+      repos:
+        - registry.megpoid.xyz/drone-stack
+      tags: latest
+      registry: registry.megpoid.xyz
+      platforms:
+        - linux/amd64
+        - linux/arm64
+      buildkit: true
+      build_args:
+        - CI_COMMIT_TAG=${DRONE_TAG}
+        - CI_COMMIT_BRANCH=${DRONE_BRANCH}
+        - CI_COMMIT_SHA=${DRONE_COMMIT_SHA}
+        - CI_PIPELINE_CREATED_AT=${DRONE_BUILD_CREATED}
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    environment:
+      GOPROXY:
+        from_secret: goproxy_url
+
+trigger:
+  branch:
+    - master

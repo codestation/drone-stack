@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -9,8 +8,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"megpoid.xyz/go/drone-stack"
 )
-
-var build = "0" // build number set at compile-time
 
 func main() {
 	// Load env-file if it exists first
@@ -24,7 +21,9 @@ func main() {
 	app.Name = "drone-stack plugin"
 	app.Usage = "drone-stack plugin"
 	app.Action = run
-	app.Version = fmt.Sprintf("1.0.%s", build)
+	app.Version = Version
+	cli.VersionPrinter = printVersion
+
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
 			Name:    "host",
@@ -101,6 +100,8 @@ func main() {
 }
 
 func run(c *cli.Context) error {
+	cli.VersionPrinter(c)
+
 	plugin := docker.Plugin{
 		Login: docker.Login{
 			Registry: c.String("docker.registry"),
