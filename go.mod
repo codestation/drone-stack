@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/joho/godotenv v1.4.0
 	github.com/sirupsen/logrus v1.8.1
-	github.com/urfave/cli v1.22.5
+	github.com/urfave/cli/v2 v2.4.0
 )
 
 require (
