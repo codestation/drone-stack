@@ -1,10 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"megpoid.xyz/go/drone-stack"
 )
@@ -13,7 +13,7 @@ func main() {
 	// Load env-file if it exists first
 	if env := os.Getenv("PLUGIN_ENV_FILE"); env != "" {
 		if err := godotenv.Load(env); err != nil {
-			logrus.Errorf("Cannot load env file: %s", err.Error())
+			fmt.Printf("Cannot load env file: %s", err.Error())
 		}
 	}
 
@@ -92,10 +92,16 @@ func main() {
 			Usage:   "docker cert",
 			EnvVars: []string{"PLUGIN_CERT,DOCKER_CERT"},
 		},
+		&cli.StringFlag{
+			Name:    "sshkey",
+			Usage:   "docker ssh key",
+			EnvVars: []string{"PLUGIN_SSH_KEY"},
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		logrus.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
 
@@ -123,6 +129,9 @@ func run(c *cli.Context) error {
 			Host:      c.String("host"),
 			UseTLS:    c.Bool("tls"),
 			TLSVerify: c.Bool("tlsverify"),
+		},
+		SSH: docker.SSH{
+			Key: c.String("sshkey"),
 		},
 	}
 

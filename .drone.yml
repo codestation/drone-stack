@@ -29,6 +29,7 @@ steps:
         - registry.megpoid.xyz/drone-stack:${DRONE_BRANCH}-cache
       repos:
         - registry.megpoid.xyz/drone-stack
+        - codestation/drone-stack
       tags: latest
       registry: registry.megpoid.xyz
       platforms:

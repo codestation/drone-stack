@@ -16,7 +16,7 @@ var (
 	BuildTime string
 )
 
-const versionFormatter = `drone-stack version: %s, commit: %s, built at: %s`
+const versionFormatter = "drone-stack version: %s, commit: %s, built at: %s\n"
 
 func printVersion(c *cli.Context) {
 	_, _ = fmt.Fprintf(c.App.Writer, versionFormatter, Version, Commit, BuildTime)

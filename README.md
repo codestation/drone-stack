@@ -4,54 +4,101 @@ Drone plugin to deploy stacks in Docker Swarm
 
 ## Basic Usage with Drone CI
 
+You can use this plugin to connect to Docker via SSH, TCP or a Unix Socket.
+
+### Connect via SSH
+
 ```yml
-pipeline:
-  deploy:
+kind: pipeline
+name: default
+type: docker
+
+steps:
+  - name: deploy
     image: codestation/drone-stack
-    host: tcp://example.com:2376
-    stack_name: mystack
-    tlsverify: true
-    secrets: [ docker_cert, docker_key, docker_cacert ]
+    settings:
+      host: ssh://user@example.com
+      stack_name: mystack
+      ssh_key:
+        from_secret: ssh_key
 ```
 
-### Use a private registry to pull the image from
+### Connect via TLS
 
 ```yml
-pipeline:
-  deploy:
+kind: pipeline
+name: default
+type: docker
+
+steps:
+  - name: deploy
     image: codestation/drone-stack
-    host: tcp://example.com:2376
-    stack_name: mystack
-    tlsverify: true
-+   registry: registry.example.com
--   secrets: [ docker_cert, docker_key, docker_cacert ]
-+   secrets: [ docker_username, docker_password, docker_cert, docker_key, docker_cacert ]
+    settings:
+      host: tcp://example.com:2376
+      stack_name: mystack
+      tlsverify: true
+      docker_cert:
+        from_secret: docker_cert
+      docker_key:
+        from_secret: docker_key
+      docker_cacert:
+        from_secret: docker_cacert
+```
+
+#### Use a private registry to pull the image from
+
+```
+kind: pipeline
+name: default
+type: docker
+
+steps:
+  - name: deploy
+    image: codestation/drone-stack
+    settings:
+      host: tcp://example.com:2376
+      stack_name: mystack
+      tlsverify: true
++     registry: registry.example.com
++     docker_username:
++       from_secret: docker_username
++     docker_password:
++       from_secret: docker_password
+      docker_cert:
+        from_secret: docker_cert
+      docker_key:
+        from_secret: docker_key
+      docker_cacert:
+        from_secret: docker_cacert
 ```
 
 The `tls`, `tlsverify`, `docker_cert`, `docker_key` and `docker_cacert` combinations are the same of the client modes supported on the docker binary. Check [here](https://docs.docker.com/engine/security/https/#client-modes) for more details.
 
-## Basic Usage using a Docker Container
-
-Execute from the working directory:
-
-```bash
-docker run --rm \
-  -e PLUGIN_HOST=tcp://example.com:2376 \
-  -e PLUGIN_TLSVERIFY=true \
-  -v $(pwd):$(pwd) \
-  -w $(pwd) \
-  codestation/drone-stack
-```
-
 ## Load certificates as drone secrets
 
-Using the drone cli, go to the directory where your docker certificates are located then run the following commands:
+Using the drone cli, go to the directory where your docker certificates or ssh keys are located then run the following commands:
+
+### For a single repo
 
 ```bash
-drone secret create myuser/myapp --name docker_cert --value @cert.pem
-drone secret create myuser/myapp --name docker_key --value @key.pem
-drone secret create myuser/myapp --name docker_cacert --value @ca.pem
+drone secret add myuser/myapp --name docker_cert --data @cert.pem
+drone secret add myuser/myapp --name docker_key --data @key.pem
+drone secret add myuser/myapp --name docker_cacert --data @ca.pem
+# for for ssh
+drone secret add myuser/myapp --name ssh_key --data @id_rsa
 ```
+
+### For a whole organization
+
+```bash
+drone orgsecret add myuser docker_cert @cert.pem
+drone orgsecret add myuser docker_key @key.pem
+drone orgsecret add myuser docker_cacert @ca.pem
+# or for ssh
+drone orgsecret add myuser ssh_key @id_rsa
+```
+
+You can use the files or encode the secrets using base64.
 
 ## Secret Reference
 
@@ -60,13 +107,15 @@ drone secret create myuser/myapp --name docker_cacert --value @ca.pem
 * `docker_cert` - client certificate
 * `docker_key` - client key
 * `docker_cacert` - CA certificate
+* `ssh_key` - SSH private key
 
 ## Parameter Reference
 
 * `compose` - compose file to be used, defaults to docker-compose.yml
-* `host` - remote docker swarm host:port
+* `host` - remote docker swarm host:port, can use `SSH` or `TLS`
 * `prune` - prune services that are no longer referenced
 * `stack_name` - name of the stack to deploy
 * `tls` - use TLS. Implied by `tlsverify`
 * `tlsverify` - use TLS and verify the remote host
 * `registry` - authenticates to this registry
+* `ssh_key` - SSH private key

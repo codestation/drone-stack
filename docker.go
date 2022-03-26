@@ -1,8 +1,12 @@
 package docker
 
 import (
+	"bytes"
+	"encoding/base64"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -36,36 +40,54 @@ type (
 		TLSCACert string // Contents of ca.pem
 	}
 
+	SSH struct {
+		Key string // Contents of ssh key
+	}
+
 	// Plugin defines the Docker plugin parameters.
 	Plugin struct {
 		Login  Login  // Docker login configuration
 		Deploy Deploy // Docker stack deploy configuration
 		Certs  Certs  // Docker certs configuration
+		SSH    SSH    // Docker ssh configuration
 		Host   Host   // Docker host and global configuration
 	}
 )
 
-const dockerExe = "/usr/local/bin/docker"
-const certdir = "/tmp/certs"
+const dockerExe = "/usr/bin/docker"
+const sshHostAlias = "remote"
 
 // Exec executes the plugin step
 func (p Plugin) Exec() error {
-	err := setupCerts(p.Certs, p.Host)
-	if err != nil {
-		return fmt.Errorf("cannot setup certificates: %s", err)
-	}
+	var envs []string
 
-	if p.Host.Host == "" || !strings.HasPrefix(p.Host.Host, "tcp://") {
-		return fmt.Errorf("docker host must be present and use the format tcp://..., provided: %s", p.Host.Host)
+	if strings.HasPrefix(p.Host.Host, "tcp://") {
+		envs = append(envs, fmt.Sprintf("DOCKER_HOST=%s", p.Host.Host))
+
+		homedir, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("cannot get homedir: %w", err)
+		}
+
+		certDir := path.Join(homedir, ".docker/certs")
+		err = setupCerts(p.Certs, p.Host, certDir)
+		if err != nil {
+			return fmt.Errorf("cannot setup certificates: %w", err)
+		}
+
+		envs = append(envs, fmt.Sprintf("DOCKER_CERT_PATH=%s", certDir))
+	} else if strings.HasPrefix(p.Host.Host, "ssh://") {
+		err := setupSSH(p.SSH, p.Host)
+		if err != nil {
+			return fmt.Errorf("failed to setup ssh: %w", err)
+		}
+		envs = append(envs, fmt.Sprintf("DOCKER_HOST=ssh://%s", sshHostAlias))
+	} else if p.Host.Host != "" {
+		envs = append(envs, fmt.Sprintf("DOCKER_HOST=%s", p.Host.Host))
 	}
 
 	if p.Deploy.Name == "" {
 		return fmt.Errorf("docker stack name must be present")
-	}
-
-	envs := []string{
-		fmt.Sprintf("DOCKER_CERT_PATH=%s", certdir),
-		fmt.Sprintf("DOCKER_HOST=%s", p.Host.Host),
 	}
 
 	if p.Host.TLSVerify {
@@ -101,7 +123,7 @@ func (p Plugin) Exec() error {
 	for _, cmd := range cmds {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-		cmd.Env = envs
+		cmd.Env = append(os.Environ(), envs...)
 		trace(cmd)
 
 		err := cmd.Run()
@@ -113,10 +135,20 @@ func (p Plugin) Exec() error {
 	return nil
 }
 
-func setupCerts(certs Certs, host Host) error {
+func base64Decode(str string) []byte {
+	result, err := base64.StdEncoding.DecodeString(str)
+	if err != nil {
+		// decode failed, use string as is
+		return []byte(str)
+	} else {
+		return result
+	}
+}
+
+func setupCerts(certs Certs, host Host, certDir string) error {
 	if host.UseTLS || host.TLSVerify {
 		// create certs directory
-		err := os.MkdirAll(certdir, 0755)
+		err := os.MkdirAll(certDir, 0755)
 		if err != nil {
 			return fmt.Errorf("cannot create cert directory: %s", err)
 		}
@@ -125,12 +157,12 @@ func setupCerts(certs Certs, host Host) error {
 		if (certs.TLSKey != "") == (certs.TLSCert != "") {
 			// both certs are present
 			if certs.TLSKey != "" {
-				err := ioutil.WriteFile(path.Join(certdir, "key.pem"), []byte(certs.TLSKey), 0600)
+				err := ioutil.WriteFile(path.Join(certDir, "key.pem"), base64Decode(certs.TLSKey), 0600)
 				if err != nil {
 					return fmt.Errorf("cannot create key.pem: %s", err)
 				}
 
-				err = ioutil.WriteFile(path.Join(certdir, "cert.pem"), []byte(certs.TLSCert), 0644)
+				err = ioutil.WriteFile(path.Join(certDir, "cert.pem"), base64Decode(certs.TLSCert), 0644)
 				if err != nil {
 					return fmt.Errorf("cannot create cert.pem: %s", err)
 				}
@@ -144,7 +176,7 @@ func setupCerts(certs Certs, host Host) error {
 		if host.TLSVerify {
 			// CA cert must be present
 			if certs.TLSCACert != "" {
-				err := ioutil.WriteFile(path.Join(certdir, "ca.pem"), []byte(certs.TLSCACert), 0644)
+				err := ioutil.WriteFile(path.Join(certDir, "ca.pem"), base64Decode(certs.TLSCACert), 0644)
 				if err != nil {
 					return fmt.Errorf("cannot create ca.pem: %s", err)
 				}
@@ -153,6 +185,61 @@ func setupCerts(certs Certs, host Host) error {
 			}
 		}
 	}
+
+	return nil
+}
+
+func setupSSH(ssh SSH, host Host) error {
+	sshUrl, err := url.Parse(host.Host)
+	if err != nil {
+		return fmt.Errorf("invalid ssh host: %w", err)
+	}
+	homedir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("cannot get homedir: %w", err)
+	}
+
+	sshDir := path.Join(homedir, ".ssh")
+	pemPath := path.Join(sshDir, "key.pem")
+
+	if _, err := os.Stat(path.Join(sshDir, "config")); !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("ssh config file already exist or cannot be checked")
+	}
+
+	err = os.MkdirAll(sshDir, 0755)
+	if err != nil {
+		return fmt.Errorf("cannot create ssh directory: %w", err)
+	}
+
+	err = ioutil.WriteFile(pemPath, base64Decode(ssh.Key), 0600)
+	if err != nil {
+		return fmt.Errorf("cannot create ssh key: %s", err)
+	}
+
+	var sshConfig []byte
+	w := bytes.NewBuffer(sshConfig)
+
+	w.WriteString(fmt.Sprintf("Host %s\n", sshHostAlias))
+	w.WriteString(fmt.Sprintf("  HostName %s\n", sshUrl.Hostname()))
+	if sshUrl.User.Username() != "" {
+		w.WriteString(fmt.Sprintf("  User %s\n", sshUrl.User.Username()))
+	}
+	if sshUrl.Port() != "" {
+		w.WriteString(fmt.Sprintf("  Port %s\n", sshUrl.Port()))
+	}
+
+	if ssh.Key != "" {
+		w.WriteString(fmt.Sprintf("  IdentityFile %s\n", pemPath))
+	}
+
+	w.WriteString("  StrictHostKeyChecking no\n")
+
+	err = ioutil.WriteFile(path.Join(sshDir, "config"), w.Bytes(), 0600)
+	if err != nil {
+		return fmt.Errorf("cannot write ssh config file: %w", err)
+	}
+
+	fmt.Printf("SSH Config:\n\n%s\n", w.String())
 
 	return nil
 }
