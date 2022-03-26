@@ -40,10 +40,10 @@ func main() {
 			Usage:   "docker tlsverify",
 			EnvVars: []string{"PLUGIN_TLSVERIFY"},
 		},
-		&cli.StringFlag{
+		&cli.StringSliceFlag{
 			Name:    "compose",
 			Usage:   "stack deploy compose",
-			Value:   "docker-compose.yml",
+			Value:   cli.NewStringSlice("docker-compose.yml"),
 			EnvVars: []string{"PLUGIN_COMPOSE"},
 		},
 		&cli.StringFlag{
@@ -117,7 +117,7 @@ func run(c *cli.Context) error {
 		},
 		Deploy: docker.Deploy{
 			Name:    c.String("stack.name"),
-			Compose: c.String("compose"),
+			Compose: c.StringSlice("compose"),
 			Prune:   c.Bool("prune"),
 		},
 		Certs: docker.Certs{

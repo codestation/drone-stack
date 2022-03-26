@@ -1,6 +1,10 @@
 # drone-stack
 
-Drone plugin to deploy stacks in Docker Swarm
+Drone plugin to deploy stacks in Docker Swarm. Use the following image:
+
+```
+ghcr.io/codestation/drone-stack:latest
+```
 
 ## Basic Usage with Drone CI
 
@@ -19,6 +23,28 @@ steps:
     settings:
       host: ssh://user@example.com
       stack_name: mystack
+      compose: docker-compose.yml
+      ssh_key:
+        from_secret: ssh_key
+```
+
+You can also use multiple compose files
+
+```yml
+kind: pipeline
+name: default
+type: docker
+
+steps:
+  - name: deploy
+    image: codestation/drone-stack
+    settings:
+      host: ssh://user@example.com
+      stack_name: mystack
+      # pass multiple compose files
+      compose:
+        - docker-compose.yml
+        - another-file.yml
       ssh_key:
         from_secret: ssh_key
 ```
@@ -47,7 +73,7 @@ steps:
 
 #### Use a private registry to pull the image from
 
-```
+```yml
 kind: pipeline
 name: default
 type: docker
@@ -59,17 +85,18 @@ steps:
       host: tcp://example.com:2376
       stack_name: mystack
       tlsverify: true
-+     registry: registry.example.com
-+     docker_username:
-+       from_secret: docker_username
-+     docker_password:
-+       from_secret: docker_password
       docker_cert:
         from_secret: docker_cert
       docker_key:
         from_secret: docker_key
       docker_cacert:
         from_secret: docker_cacert
+      # add a registry
+      registry: registry.example.com
+      docker_username:
+        from_secret: docker_username
+      docker_password:
+        from_secret: docker_password
 ```
 
 The `tls`, `tlsverify`, `docker_cert`, `docker_key` and `docker_cacert` combinations are the same of the client modes supported on the docker binary. Check [here](https://docs.docker.com/engine/security/https/#client-modes) for more details.
@@ -111,7 +138,7 @@ You can use the files or encode the secrets using base64.
 
 ## Parameter Reference
 
-* `compose` - compose file to be used, defaults to docker-compose.yml
+* `compose` - compose file(s) to be used, defaults to docker-compose.yml
 * `host` - remote docker swarm host:port, can use `SSH` or `TLS`
 * `prune` - prune services that are no longer referenced
 * `stack_name` - name of the stack to deploy

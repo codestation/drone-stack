@@ -29,9 +29,9 @@ type (
 	}
 
 	Deploy struct {
-		Name    string // Docker deploy stack name
-		Compose string // Docker compose file
-		Prune   bool   // Docker deploy prune
+		Name    string   // Docker deploy stack name
+		Compose []string // Docker compose file(s)
+		Prune   bool     // Docker deploy prune
 	}
 
 	Certs struct {
@@ -282,8 +282,11 @@ func commandDeploy(deploy Deploy, auth bool) *exec.Cmd {
 	args := []string{
 		"stack",
 		"deploy",
-		"-c", deploy.Compose,
 		deploy.Name,
+	}
+
+	for _, compose := range deploy.Compose {
+		args = append(args, "-c", compose)
 	}
 
 	if deploy.Prune {
